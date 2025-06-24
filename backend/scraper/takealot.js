@@ -4,7 +4,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 puppeteer.use(StealthPlugin());
 
 async function scrapeTakealot(query) {
-  console.log("Starting scraper...");
+  console.log("Starting scraper");
 
   const browser = await puppeteer.launch({
     headless: false,
@@ -36,9 +36,6 @@ async function scrapeTakealot(query) {
     }
 
     await page.waitForSelector('[data-ref="product-card"]', { timeout: 20000 });
-
-    // Take screenshot for debug
-    await page.screenshot({ path: 'takealot_debug.png' });
 
     const products = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('[data-ref="product-card"]')).slice(0, 5);
