@@ -1,6 +1,5 @@
 import express from 'express'
 import cors from 'cors'
-import scarpeTakealot from './scraper/takealot.js';
 import compareRoute from './routes/compare.js'
 
 

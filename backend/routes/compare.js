@@ -10,7 +10,7 @@ router.get("/", async (req, res) => {
 
     try {
         const [takealotResults, amazonResults] = await Promise.all({
-            scarpeTakealot(query),
+            scarpeTakealot(query)
             // Scarape Amazon here
         });
 
