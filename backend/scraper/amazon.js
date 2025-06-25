@@ -44,7 +44,12 @@ async function scrapeAmazon(query) {
             const fraction = card.querySelector('span.a-price-fraction')?.innerText.replace(/[^\d]/g, "") || "";
             const price = whole ? (fraction ? `${whole}.${fraction}` : whole) : "No price";
             const image = card.querySelector('img.s-image')?.src || "";
-            const link = card.querySelector('h2 a')?.href || "";
+
+            const anchor = card.querySelector('a.a-link-normal.s-no-outline');
+            const relativeLink = anchor?.getAttribute('href') || "";
+            const link = relativeLink ? `https://www.amazon.co.za${relativeLink}` : "";
+
+            
 
             return { title, price: `R ${price}`, image, link };
         });

@@ -1,6 +1,6 @@
 import express from "express"
-import scarpeTakealot from "../scraper/takealot.js"
-
+import scrapeTakealot from "../scraper/takealot.js"
+import scrapeAmazon from "../scraper/amazon.js"
 const router = express.Router()
 
 
@@ -9,10 +9,10 @@ router.get("/", async (req, res) => {
     if (!query) return res.status(400).json({ error: "Missing query param"});
 
     try {
-        const [takealotResults, amazonResults] = await Promise.all({
-            scarpeTakealot(query)
-            // Scarape Amazon here
-        });
+        const [takealotResults, amazonResults] = await Promise.all([
+            scrapeTakealot(query),
+            scrapeAmazon(query)
+        ]);
 
         res.json({
             query,
