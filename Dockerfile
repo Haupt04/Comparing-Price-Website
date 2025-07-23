@@ -1,46 +1,70 @@
-# Use official Node image with slim Debian base
+# 1. Base image
 FROM node:18-slim
 
-# Install Chromium and dependencies Puppeteer needs
+# 2. Install Chromium + dependencies for Puppeteer
 RUN apt-get update && apt-get install -y \
-    chromium \
-    fonts-liberation \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libasound2 \
-    libnss3 \
-    libxss1 \
-    libxtst6 \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+  chromium \
+  gconf-service \
+  libasound2 \
+  libatk1.0-0 \
+  libc6 \
+  libcairo2 \
+  libcups2 \
+  libdbus-1-3 \
+  libexpat1 \
+  libfontconfig1 \
+  libgcc1 \
+  libgconf-2-4 \
+  libgdk-pixbuf2.0-0 \
+  libglib2.0-0 \
+  libgtk-3-0 \
+  libnspr4 \
+  libpango-1.0-0 \
+  libx11-6 \
+  libx11-xcb1 \
+  libxcb1 \
+  libxcomposite1 \
+  libxcursor1 \
+  libxdamage1 \
+  libxext6 \
+  libxfixes3 \
+  libxi6 \
+  libxrandr2 \
+  libxrender1 \
+  libxss1 \
+  libxtst6 \
+  ca-certificates \
+  fonts-liberation \
+  libnss3 \
+  lsb-release \
+  xdg-utils \
+  wget \
+  --no-install-recommends && \
+  rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# 3. Set working directory inside container
 WORKDIR /app
 
-# Copy package files and install dependencies (backend + frontend if needed)
-COPY package*.json ./
-RUN npm install
+# 4. Copy backend package.json and package-lock.json (if any)
+COPY backend/package*.json ./backend/
 
-# Copy entire project files
+# 5. Copy frontend package.json and package-lock.json (if any)
+COPY frontend/package*.json ./frontend/
+
+# 6. Install backend dependencies
+RUN cd backend && npm install
+
+# 7. Install frontend dependencies and build frontend
+RUN cd frontend && npm install && npm run build
+
+# 8. Copy entire project into the container
 COPY . .
 
-# Build frontend (adjust if your frontend build command is different)
-RUN npm install --prefix frontend
-RUN npm run build --prefix frontend
-
-# Set env var so Puppeteer knows where Chromium is
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Expose backend port (adjust if different)
+# 9. Expose backend port (update if different)
 EXPOSE 3001
 
-# Start your backend server (adjust path if your entry is different)
+# 10. Set environment variable for production to serve static frontend from backend
+ENV NODE_ENV=production
+
+# 11. Start backend app
 CMD ["node", "backend/index.js"]

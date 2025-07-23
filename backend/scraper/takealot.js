@@ -6,7 +6,7 @@ puppeteer.use(StealthPlugin());
 async function scrapeTakealot(query) {
   const browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    executablePath: '/usr/bin/chromium',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
     defaultViewport: { width: 1280, height: 800 },
   });
