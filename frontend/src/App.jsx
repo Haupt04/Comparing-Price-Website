@@ -35,7 +35,8 @@ function App() {
     setLoading(true)
     try {
       const res = await axiosInstance.get(`/compare?query=${query}`);
-      setMatches(res.data.matches.slice(0, 3));
+      console.log("Response data:", res.data);
+      setMatches(Array.isArray(res.data.matches) ? res.data.matches.slice(0, 3) : []);
       setQuery("")
     } catch (error) {
       console.log("Error", error)
