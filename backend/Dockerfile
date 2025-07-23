@@ -1,29 +1,26 @@
-# Use official Node.js slim image
-FROM node:18-slim
+FROM node:18
 
-# Install Puppeteer dependencies (Chrome dependencies)
-RUN apt-get update && apt-get install -y \
-  gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 \
-  libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 \
-  libpango-1.0-0 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 \
-  libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates \
-  fonts-liberation libnss3 lsb-release xdg-utils wget \
-  && rm -rf /var/lib/apt/lists/*
-
-# Create app directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if any)
+# Copy package.json files
 COPY package*.json ./
 
-# Install dependencies
+# Install root dependencies (if any)
 RUN npm install
 
-# Copy the rest of your code
-COPY . .
+# Copy backend and frontend folders
+COPY backend ./backend
+COPY frontend ./frontend
 
-# Expose the port your app listens on (change if needed)
+# Install backend dependencies
+RUN cd backend && npm install
+
+# Install frontend dependencies and build frontend
+RUN cd frontend && npm install && npm run build
+
+# Expose backend port
 EXPOSE 3000
 
-# Command to start your app
-CMD ["npm", "start"]
+# Start backend server
+CMD ["node", "backend/index.js"]
+
