@@ -1,8 +1,7 @@
-import React from 'react'
 
-export const HeroSection = () => {
+export const HeroSection = ({query, setQuery, handleSubmit}) => {
   return (
-    <div className='gradient-bg py-12 md:py-20'>
+    <div id="home" className='gradient-bg py-12 md:py-20'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center'>
             <h1 className='text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6'>Compare Prices Instantly</h1>
             <p className='text-xl md:text-xl text-green-100 mb-8 max-w-3xl mx-auto'>Find the best deals by comparing prices</p>
@@ -10,8 +9,8 @@ export const HeroSection = () => {
             {/* Search Bar */}
             <div className='max-w-3xl mx-auto'>
                 <div className='flex flex-col md:flex-row shadow-lg rounded-lg overflow-hidden'>
-                    <input type='text' placeholder='Search for products...' className='bg-white flex-grow px-6 py-4 focus:outline-none text-gray-700'/>
-                    <button className='bg-green-800 hover:bg-green-900 text-white px-8 py-4 font-medium transition duration-300'>
+                    <input type='text' placeholder='Search for products...' className='bg-white flex-grow px-6 py-4 focus:outline-none text-gray-700' onChange={e => setQuery(e.target.value)} value={query}/>
+                    <button className='bg-green-800 hover:bg-green-900 text-white px-8 py-4 font-medium transition duration-300' onClick={handleSubmit}>
                         Compare Now
                     </button>
                 </div>
@@ -26,6 +25,7 @@ export const HeroSection = () => {
                     </div>
                 </div>
             </div>
+            <p className='text-xl md:text-xl text-white max-w-3xl mx-auto pt-5'>Disclaimer: Product data on this site is collected via web scraping from Takealot and Amazon, intended solely for educational and non-commercial use.</p>
         </div>
     </div>
   )
