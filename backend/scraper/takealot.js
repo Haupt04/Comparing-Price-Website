@@ -4,10 +4,10 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 puppeteer.use(StealthPlugin());
 
 async function scrapeTakealot(query) {
-  console.log("Starting scraper");
+
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: 'new',
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     defaultViewport: { width: 1280, height: 800 },
   });
@@ -35,7 +35,7 @@ async function scrapeTakealot(query) {
       console.log("No popup detected.");
     }
 
-    await page.waitForSelector('[data-ref="product-card"]', { timeout: 20000 });
+    await page.waitForSelector('[data-ref="product-card"]', { timeout: 60000 });
 
     const products = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('[data-ref="product-card"]')).slice(0, 5);
@@ -55,12 +55,9 @@ async function scrapeTakealot(query) {
     if (!products.length) {
       throw new Error("No products found");
     }
-
-    console.log("Scraped Products:", products);
     return products;
 
   } catch (err) {
-    await page.screenshot({ path: 'error_screenshot.png' });
     await browser.close();
     console.error("Scrape failed:", err.message);
     throw new Error(`Failed to get Takealot Products: ${err.message}`);

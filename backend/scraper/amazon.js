@@ -1,14 +1,12 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import fs from "fs";
 
 puppeteer.use(StealthPlugin());
 
 async function scrapeAmazon(query) {
-    console.log("Started scraper");
 
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: 'new',
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
         defaultViewport: { width: 1280, height: 800 },
     })
@@ -33,9 +31,6 @@ async function scrapeAmazon(query) {
         await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 20000 });
         
 
-        fs.writeFileSync("amazon_debug.html", await page.content());
-        await page.screenshot({ path: "amazon_debug.png", fullPage: true });
-
         const products = await page.evaluate(() => {
         const cards = Array.from(document.querySelectorAll('div[data-component-type="s-search-result"]')).slice(0, 5);
         return cards.map(card => {
@@ -58,11 +53,9 @@ async function scrapeAmazon(query) {
         await browser.close();
 
         if (!products.length) throw new Error("No Amazon products found");
-        console.log("✅ Amazon scraped products:", products);
         return products;
 
   } catch (error) {
-        await page.screenshot({ path: 'amazon_error.png' });
         await browser.close();
         console.error("Amazon scrape failed:", error.message);
         throw new Error(`Amazon scraper error: ${error.message}`);
