@@ -1,0 +1,21 @@
+{
+  "name": "comparing-price-website",
+  "version": "1.0.0",
+  "description": "A working web app that lets users search for a product, and returns price comparisons from Amazon and Takealot, using React (frontend) and Express + Puppeteer (backend).",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "npm start --prefix backend"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Haupt04/Comparing-Price-Website.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Haupt04/Comparing-Price-Website/issues"
+  },
+  "homepage": "https://github.com/Haupt04/Comparing-Price-Website#readme"
+}
