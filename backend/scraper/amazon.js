@@ -108,3 +108,4 @@ async function scrapeAmazon(query) {
 }
 
 export default scrapeAmazon;
+ 

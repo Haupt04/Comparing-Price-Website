@@ -23,7 +23,7 @@ async function scrapeTakealot(query) {
   for (let i = 0; i < 3; i++) {
     try {
       browser = await puppeteer.launch({
-        args: chromium.args,
+        args: [...chromium.args, '--no-sandbox'],
         defaultViewport: chromium.defaultViewport,
         executablePath: path,
         headless: chromium.headless,
@@ -42,6 +42,9 @@ async function scrapeTakealot(query) {
 
   try {
     const page = await browser.newPage();
+
+    const html = await page.content();
+    console.log("HTML Snapshot:", html.slice(0, 1000));
 
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
