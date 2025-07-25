@@ -3,7 +3,7 @@ FROM node:18-slim
 
 # 2. Install Chromium + dependencies for Puppeteer
 RUN apt-get update && apt-get install -y \
-  chromium \
+  chromium-browser \
   gconf-service \
   libasound2 \
   libatk1.0-0 \
