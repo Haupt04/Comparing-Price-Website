@@ -1,18 +1,16 @@
-import puppeteer from 'puppeteer-extra';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
 async function scrapeAmazon(query) {
+
   const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: '/usr/bin/chromium-browser',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-    ],
-    defaultViewport: { width: 1280, height: 800 },
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
   });
 
   const page = await browser.newPage();
