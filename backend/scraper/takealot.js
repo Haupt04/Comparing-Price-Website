@@ -53,9 +53,6 @@ async function scrapeTakealot(query) {
       timeout: 120000,
     });
 
-    // Wait a bit more for lazy-loaded content
-    await page.waitForTimeout(3000);
-
     // Try to close any popup if it exists
     try {
       await page.waitForSelector('.ab-close-button', { timeout: 5000 });
