@@ -4,7 +4,6 @@ import chromium from '@sparticuz/chromium';
 import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
-
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function scrapeAmazon(query) {
@@ -34,7 +33,6 @@ async function scrapeAmazon(query) {
         console.warn("Chromium binary busy, retrying...");
         await sleep(500);
       } else {
-        console.error("Browser launch failed:", err.message);
         throw err;
       }
     }
@@ -47,47 +45,37 @@ async function scrapeAmazon(query) {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113 Safari/537.36"
     );
 
-    // Retry logic for navigation
-    const maxAttempts = 2;
-    let navSuccess = false;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-ZA', 'en'] });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    });
+
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        await page.goto(url, {
-          waitUntil: 'domcontentloaded',
-          timeout: 120000,
-        });
-        navSuccess = true;
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
         break;
       } catch (err) {
-        console.warn(`Amazon navigation attempt ${attempt + 1} failed: ${err.message}`);
-        if (attempt === maxAttempts - 1) {
+        if (attempt === 1) {
           await page.screenshot({ path: '/tmp/amazon_error.png' });
           throw new Error(`Navigation failed: ${err.message}`);
         }
-        await sleep(2000); // small delay before retry
+        await sleep(2000);
       }
     }
 
-    await page.waitForSelector('span.a-price-whole', { timeout: 30000 });
+    await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 30000 });
 
     const html = await page.content();
     console.log("Amazon HTML Preview:\n", html.slice(0, 1000));
 
     const products = await page.evaluate(() => {
-      const cards = Array.from(
-        document.querySelectorAll('div[data-component-type="s-search-result"]')
-      ).slice(0, 5);
+      const cards = Array.from(document.querySelectorAll('div[data-component-type="s-search-result"]')).slice(0, 5);
 
       return cards.map((card) => {
         const title = card.querySelector('h2')?.innerText.trim() || "No title";
 
-        const whole = card
-          .querySelector('span.a-price-whole')
-          ?.innerText.replace(/[^\d]/g, "") || "";
-
-        const fraction = card
-          .querySelector('span.a-price-fraction')
-          ?.innerText.replace(/[^\d]/g, "") || "";
+        const whole = card.querySelector('span.a-price-whole')?.innerText.replace(/[^\d]/g, "") || "";
+        const fraction = card.querySelector('span.a-price-fraction')?.innerText.replace(/[^\d]/g, "") || "";
 
         const price = whole
           ? fraction
@@ -96,18 +84,16 @@ async function scrapeAmazon(query) {
           : "No price";
 
         const image = card.querySelector('img.s-image')?.src || "";
-
         const anchor = card.querySelector('a.a-link-normal.s-no-outline');
         const relativeLink = anchor?.getAttribute('href') || "";
-        const link = relativeLink
-          ? `https://www.amazon.co.za${relativeLink}`
-          : "";
+        const link = relativeLink ? `https://www.amazon.co.za${relativeLink}` : "";
 
         return { title, price: `R ${price}`, image, link };
       });
     });
 
     if (!products.length) {
+      await page.screenshot({ path: '/tmp/amazon_no_products.png' });
       throw new Error("No Amazon products found");
     }
 

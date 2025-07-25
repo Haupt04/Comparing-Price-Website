@@ -4,7 +4,6 @@ import chromium from '@sparticuz/chromium';
 import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
-
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function scrapeTakealot(query) {
@@ -35,7 +34,6 @@ async function scrapeTakealot(query) {
         console.warn("Chromium binary busy, retrying...");
         await sleep(500);
       } else {
-        console.error("Browser launch failed:", err.message);
         throw err;
       }
     }
@@ -48,29 +46,25 @@ async function scrapeTakealot(query) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
     );
 
-    // Retry navigation once if it fails
-    const maxNavAttempts = 2;
-    let navSuccess = false;
+    // Add bot evasion tweaks
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-ZA', 'en'] });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+    });
 
-    for (let attempt = 0; attempt < maxNavAttempts; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        await page.goto(searchUrl, {
-          waitUntil: 'domcontentloaded',
-          timeout: 120000,
-        });
-        navSuccess = true;
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 120000 });
         break;
       } catch (err) {
-        console.warn(`Navigation attempt ${attempt + 1} failed:`, err.message);
-        if (attempt === maxNavAttempts - 1) {
+        if (attempt === 1) {
           await page.screenshot({ path: '/tmp/takealot_error.png' });
           throw new Error(`Navigation failed: ${err.message}`);
         }
-        await sleep(2000); // brief wait before retry
+        await sleep(2000);
       }
     }
 
-    // Try to close popups if present
     try {
       await page.waitForSelector('.ab-close-button', { timeout: 5000 });
       await page.click('.ab-close-button');
@@ -79,7 +73,6 @@ async function scrapeTakealot(query) {
       console.log('No popup to close');
     }
 
-    // Wait for product cards to load
     await page.waitForSelector('[data-ref="product-card"]', { timeout: 30000 });
 
     const htmlPreview = await page.content();
@@ -98,6 +91,7 @@ async function scrapeTakealot(query) {
     });
 
     if (!products.length) {
+      await page.screenshot({ path: '/tmp/takealot_no_products.png' });
       throw new Error('No Takealot products found');
     }
 
