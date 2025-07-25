@@ -47,15 +47,31 @@ async function scrapeAmazon(query) {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113 Safari/537.36"
     );
 
-    await page.goto(url, {
-      waitUntil: 'networkidle0',
-      timeout: 60000,
-    });
+    // Retry logic for navigation
+    const maxAttempts = 2;
+    let navSuccess = false;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        await page.goto(url, {
+          waitUntil: 'domcontentloaded',
+          timeout: 120000,
+        });
+        navSuccess = true;
+        break;
+      } catch (err) {
+        console.warn(`Amazon navigation attempt ${attempt + 1} failed: ${err.message}`);
+        if (attempt === maxAttempts - 1) {
+          await page.screenshot({ path: '/tmp/amazon_error.png' });
+          throw new Error(`Navigation failed: ${err.message}`);
+        }
+        await sleep(2000); // small delay before retry
+      }
+    }
+
+    await page.waitForSelector('span.a-price-whole', { timeout: 30000 });
 
     const html = await page.content();
     console.log("Amazon HTML Preview:\n", html.slice(0, 1000));
-
-    await page.waitForSelector('span.a-price-whole', { timeout: 30000 });
 
     const products = await page.evaluate(() => {
       const cards = Array.from(
@@ -91,17 +107,17 @@ async function scrapeAmazon(query) {
       });
     });
 
-    await browser.close();
-
     if (!products.length) {
       throw new Error("No Amazon products found");
     }
 
     return products;
+
   } catch (error) {
-    await browser.close();
     console.error("Amazon scrape failed:", error.message);
     throw new Error(`Amazon scraper error: ${error.message}`);
+  } finally {
+    if (browser) await browser.close();
   }
 }
 

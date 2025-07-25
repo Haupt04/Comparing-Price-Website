@@ -20,6 +20,7 @@ async function scrapeTakealot(query) {
   }
 
   let browser;
+
   for (let i = 0; i < 3; i++) {
     try {
       browser = await puppeteer.launch({
@@ -47,11 +48,29 @@ async function scrapeTakealot(query) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
     );
 
-    await page.goto(searchUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 60000,
-    });
+    // Retry navigation once if it fails
+    const maxNavAttempts = 2;
+    let navSuccess = false;
 
+    for (let attempt = 0; attempt < maxNavAttempts; attempt++) {
+      try {
+        await page.goto(searchUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 120000,
+        });
+        navSuccess = true;
+        break;
+      } catch (err) {
+        console.warn(`Navigation attempt ${attempt + 1} failed:`, err.message);
+        if (attempt === maxNavAttempts - 1) {
+          await page.screenshot({ path: '/tmp/takealot_error.png' });
+          throw new Error(`Navigation failed: ${err.message}`);
+        }
+        await sleep(2000); // brief wait before retry
+      }
+    }
+
+    // Try to close popups if present
     try {
       await page.waitForSelector('.ab-close-button', { timeout: 5000 });
       await page.click('.ab-close-button');
@@ -60,6 +79,7 @@ async function scrapeTakealot(query) {
       console.log('No popup to close');
     }
 
+    // Wait for product cards to load
     await page.waitForSelector('[data-ref="product-card"]', { timeout: 30000 });
 
     const htmlPreview = await page.content();
@@ -77,8 +97,6 @@ async function scrapeTakealot(query) {
       });
     });
 
-    await browser.close();
-
     if (!products.length) {
       throw new Error('No Takealot products found');
     }
@@ -86,9 +104,10 @@ async function scrapeTakealot(query) {
     return products;
 
   } catch (err) {
-    await browser.close();
     console.error('Takealot scrape failed:', err.message);
     throw new Error(`Takealot scraper error: ${err.message}`);
+  } finally {
+    if (browser) await browser.close();
   }
 }
 
