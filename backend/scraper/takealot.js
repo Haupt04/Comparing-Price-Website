@@ -1,27 +1,52 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import chromium from '@sparticuz/chromium';
+import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
 
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
 async function scrapeTakealot(query) {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-  });
-
-  const page = await browser.newPage();
-
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
-  );
-
   const searchUrl = `https://www.takealot.com/all?qsearch=${encodeURIComponent(query)}`;
-  console.log('Navigating to:', searchUrl);
+  console.log("Query:", query);
+  console.log("Navigating to:", searchUrl);
+
+  const path = await chromium.executablePath();
+  console.log("Chromium path:", path);
+
+  if (!fs.existsSync(path)) {
+    throw new Error(`Chromium binary not found at ${path}`);
+  }
+
+  let browser;
+  for (let i = 0; i < 3; i++) {
+    try {
+      browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: path,
+        headless: chromium.headless,
+      });
+      break;
+    } catch (err) {
+      if (err.code === 'ETXTBSY') {
+        console.warn("Chromium binary busy, retrying...");
+        await sleep(500);
+      } else {
+        console.error("Browser launch failed:", err.message);
+        throw err;
+      }
+    }
+  }
 
   try {
+    const page = await browser.newPage();
+
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
+    );
+
     await page.goto(searchUrl, {
       waitUntil: 'networkidle2',
       timeout: 60000,
@@ -48,7 +73,6 @@ async function scrapeTakealot(query) {
         const image = card.querySelector('img[data-ref="product-image"]')?.src || '';
         const linkPart = card.querySelector('a')?.getAttribute('href') || '';
         const link = linkPart ? `https://www.takealot.com${linkPart}` : '';
-
         return { title, price, image, link };
       });
     });
