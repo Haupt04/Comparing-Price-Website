@@ -1,9 +1,8 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import chromium from '@sparticuz/chromium';
-import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
+
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function scrapeAmazon(query) {
@@ -11,21 +10,21 @@ async function scrapeAmazon(query) {
   console.log("Query:", query);
   console.log("Navigating to:", url);
 
-  const path = await chromium.executablePath();
-  console.log("Chromium path:", path);
-
-  if (!fs.existsSync(path)) {
-    throw new Error(`Chromium binary not found at ${path}`);
-  }
-
   let browser;
   for (let i = 0; i < 3; i++) {
     try {
       browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: path,
-        headless: chromium.headless,
+        headless: true,
+        executablePath: '/usr/bin/chromium', // Path to system-installed Chromium
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--single-process',
+          '--no-zygote'
+        ],
+        defaultViewport: null,
       });
       break;
     } catch (err) {
@@ -40,7 +39,6 @@ async function scrapeAmazon(query) {
 
   try {
     const page = await browser.newPage();
-
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113 Safari/537.36"
     );
@@ -50,30 +48,14 @@ async function scrapeAmazon(query) {
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
     });
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-        break;
-      } catch (err) {
-        if (attempt === 1) {
-          await page.screenshot({ path: '/tmp/amazon_error.png' });
-          throw new Error(`Navigation failed: ${err.message}`);
-        }
-        await sleep(2000);
-      }
-    }
-
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 30000 });
-
-    const html = await page.content();
-    console.log("Amazon HTML Preview:\n", html.slice(0, 1000));
 
     const products = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('div[data-component-type="s-search-result"]')).slice(0, 5);
 
       return cards.map((card) => {
         const title = card.querySelector('h2')?.innerText.trim() || "No title";
-
         const whole = card.querySelector('span.a-price-whole')?.innerText.replace(/[^\d]/g, "") || "";
         const fraction = card.querySelector('span.a-price-fraction')?.innerText.replace(/[^\d]/g, "") || "";
 
@@ -93,7 +75,6 @@ async function scrapeAmazon(query) {
     });
 
     if (!products.length) {
-      await page.screenshot({ path: '/tmp/amazon_no_products.png' });
       throw new Error("No Amazon products found");
     }
 
@@ -108,4 +89,3 @@ async function scrapeAmazon(query) {
 }
 
 export default scrapeAmazon;
- 

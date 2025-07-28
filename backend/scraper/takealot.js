@@ -1,7 +1,5 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import chromium from '@sparticuz/chromium';
-import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
 
@@ -12,21 +10,21 @@ async function scrapeTakealot(query) {
   console.log("Query:", query);
   console.log("Navigating to:", searchUrl);
 
-  const path = await chromium.executablePath();
-  console.log("Chromium path:", path);
-
-  if (!fs.existsSync(path)) {
-    throw new Error(`Chromium binary not found at ${path}`);
-  }
-
   let browser;
   for (let i = 0; i < 3; i++) {
     try {
       browser = await puppeteer.launch({
-        args: [...chromium.args, '--no-sandbox'],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: path,
-        headless: chromium.headless,
+        headless: true,
+        executablePath: '/usr/bin/chromium',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--single-process',
+          '--no-zygote'
+        ],
+        defaultViewport: null,
       });
       break;
     } catch (err) {
@@ -42,32 +40,24 @@ async function scrapeTakealot(query) {
 
   try {
     const page = await browser.newPage();
-
-    const html = await page.content();
-    console.log("HTML Snapshot:", html.slice(0, 1000));
-
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
     );
 
-    // Use networkidle2 for better dynamic content loading
     await page.goto(searchUrl, {
       waitUntil: 'networkidle2',
       timeout: 120000,
     });
 
-    // Try to close any popup if it exists
+    // Close popup if it exists
     try {
       await page.waitForSelector('.ab-close-button', { timeout: 5000 });
       await page.click('.ab-close-button');
-      console.log('Popup closed');
-      // Wait a moment after closing popup
       await page.waitForTimeout(1000);
     } catch {
       console.log('No popup to close');
     }
 
-    // Wait for product cards - increase timeout
     await page.waitForSelector('[data-ref="product-card"]', { timeout: 60000 });
 
     const products = await page.evaluate(() => {
@@ -82,8 +72,6 @@ async function scrapeTakealot(query) {
       });
     });
 
-    await browser.close();
-
     if (!products.length) {
       throw new Error('No Takealot products found');
     }
@@ -91,20 +79,10 @@ async function scrapeTakealot(query) {
     return products;
 
   } catch (err) {
-    if (browser) {
-      // Save page HTML and screenshot on error for debugging
-      try {
-        const page = (await browser.pages())[0];
-        const html = await page.content();
-        fs.writeFileSync('/tmp/takealot_error.html', html);
-        await page.screenshot({ path: '/tmp/takealot_error.png', fullPage: true });
-      } catch (e) {
-        console.error("Failed to save error artifacts:", e.message);
-      }
-      await browser.close();
-    }
     console.error('Takealot scrape failed:', err.message);
     throw new Error(`Takealot scraper error: ${err.message}`);
+  } finally {
+    if (browser) await browser.close();
   }
 }
 
