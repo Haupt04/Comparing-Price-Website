@@ -1,7 +1,7 @@
 # 1. Base image
 FROM node:18-slim
 
-# 2. Install Chromium dependencies
+# 2. Install Chromium deps (for Puppeteer if scraping)
 RUN apt-get update && apt-get install -y \
   fonts-liberation \
   libasound2 \
@@ -15,24 +15,29 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
-# 3. Set working directory
+# 3. Set working dir
 WORKDIR /app
 
-# 4. Copy backend and frontend code fully
+# 4. Copy backend and frontend
 COPY backend ./backend
 COPY frontend ./frontend
 
-# 5. Install backend dependencies
-RUN cd backend && npm install
+# 5. Install frontend deps and build
+WORKDIR /app/frontend
+RUN npm install && npm run build
 
-# 6. Install frontend dependencies and build it
-RUN cd frontend && npm install && npm run build
+# 6. Move dist to backend
+RUN cp -r dist ../backend/dist
 
-# 7. Expose port
+# 7. Install backend deps
+WORKDIR /app/backend
+RUN npm install
+
+# 8. Expose port
 EXPOSE 3001
 
-# 8. Environment
+# 9. Set env
 ENV NODE_ENV=production
 
-# 9. Start the backend
-CMD ["node", "backend/index.js"]
+# 10. Start backend
+CMD ["node", "index.js"]
