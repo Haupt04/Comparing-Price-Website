@@ -1,8 +1,9 @@
 # 1. Base image
-FROM node:18-slim
+FROM node:20-slim
 
-# 2. Install Chromium dependencies (NOT the browser itself)
+# 2. Install Chromium deps (for Puppeteer if scraping)
 RUN apt-get update && apt-get install -y \
+  chromium \
   fonts-liberation \
   libasound2 \
   libatk-bridge2.0-0 \
@@ -15,27 +16,29 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
-# 3. Set working directory inside container
+# 3. Set working dir
 WORKDIR /app
 
-# 4. Copy backend and frontend package files
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
+# 4. Copy backend and frontend
+COPY backend ./backend
+COPY frontend ./frontend
 
-# 5. Install backend dependencies (including puppeteer)
-RUN cd backend && npm install
+# 5. Install frontend deps and build
+WORKDIR /app/frontend
+RUN npm install && npm run build
 
-# 6. Install frontend and build
-RUN cd frontend && npm install && npm run build
+# 6. Move dist to backend
+RUN cp -r dist ../backend/dist
 
-# 7. Copy full source
-COPY . .
+# 7. Install backend deps
+WORKDIR /app/backend
+RUN npm install
 
 # 8. Expose port
 EXPOSE 3001
 
-# 9. Set environment
+# 9. Set env
 ENV NODE_ENV=production
 
 # 10. Start backend
-CMD ["node", "backend/index.js"]
+CMD ["node", "index.js"]
