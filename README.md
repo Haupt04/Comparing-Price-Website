@@ -14,7 +14,7 @@ Please note this web application scrapes off Takealot and Amazon and is only mea
 
 This application is fully deployable. Ensure that your environment variables are correctly configured for production.
 
-It is live on at [https://clone-spotify-6bux.onrender.com](https://comparing-price-website.onrender.com/)
+It is live on at https://comparing-price-website.onrender.com/
 
 Note: The website will spin down with inactivity, which can delay requests by 50 seconds or more. As well as the results may not always be accurate. 
 
