@@ -49,7 +49,7 @@ async function scrapeAmazon(query) {
     });
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 30000 });
+    await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 120000 });
 
     const products = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('div[data-component-type="s-search-result"]')).slice(0, 5);

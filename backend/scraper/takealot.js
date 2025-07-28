@@ -58,7 +58,7 @@ async function scrapeTakealot(query) {
       console.log('No popup to close');
     }
 
-    await page.waitForSelector('[data-ref="product-card"]', { timeout: 60000 });
+    await page.waitForSelector('[data-ref="product-card"]', { timeout: 120000 });
 
     const products = await page.evaluate(() => {
       const cards = Array.from(document.querySelectorAll('[data-ref="product-card"]')).slice(0, 5);
