@@ -1,5 +1,5 @@
 # 1. Base image
-FROM node:18-slim
+FROM node:20-slim
 
 # 2. Install Chromium deps (for Puppeteer if scraping)
 RUN apt-get update && apt-get install -y \
