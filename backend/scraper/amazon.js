@@ -1,21 +1,21 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import USER_AGENTS from './user.agents.js';
 
 puppeteer.use(StealthPlugin());
 
-const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const sleep = ms => new Promise(res => setTimeout(res, ms));
 
 async function scrapeAmazon(query) {
   const url = `https://www.amazon.co.za/s?k=${encodeURIComponent(query)}`;
   console.log("Query:", query);
   console.log("Navigating to:", url);
 
-  let browser;
-  for (let i = 0; i < 3; i++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let browser;
     try {
       browser = await puppeteer.launch({
         headless: true,
-        executablePath: '/usr/bin/chromium', // Path to system-installed Chromium
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -24,67 +24,63 @@ async function scrapeAmazon(query) {
           '--single-process',
           '--no-zygote'
         ],
-        defaultViewport: null,
+        timeout: 0,
+        protocolTimeout: 120000
       });
-      break;
-    } catch (err) {
-      if (err.code === 'ETXTBSY') {
-        console.warn("Chromium binary busy, retrying...");
-        await sleep(500);
-      } else {
-        throw err;
+
+      const page = await browser.newPage();
+
+      // block heavy resources
+      await page.setRequestInterception(true);
+      page.on('request', req => {
+        if (['image','stylesheet','font'].includes(req.resourceType())) return req.abort();
+        req.continue();
+      });
+
+      // random UA + headers
+      const ua = USER_AGENTS[Math.floor(Math.random()*USER_AGENTS.length)];
+      await page.setUserAgent(ua);
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-ZA,en;q=0.9' });
+
+      await sleep(500 + Math.random()*1000);
+
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-ZA','en'] });
+        Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3] });
+      });
+
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 60000 });
+
+      const products = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('div[data-component-type="s-search-result"]'))
+          .slice(0,5)
+          .map(card => {
+            const title = card.querySelector('h2')?.innerText.trim() || 'No title';
+            const whole = card.querySelector('span.a-price-whole')?.innerText.replace(/[^\d]/g,'')||'';
+            const frac = card.querySelector('span.a-price-fraction')?.innerText.replace(/[^\d]/g,'')||'';
+            const price = whole ? (frac?`${whole}.${frac}`:whole) : 'No price';
+            const img = card.querySelector('img.s-image')?.src||'';
+            const rel = card.querySelector('a.a-link-normal.s-no-outline')?.href||'';
+            return { title, price:`R ${price}`, image:img, link:rel };
+          });
+      });
+
+      if (!products.length) {
+        throw new Error('No Amazon products found');
       }
+
+      await browser.close();
+      return products;
+
+    } catch (err) {
+      console.warn(`Amazon attempt ${attempt} failed: ${err.message}`);
+      if (browser) await browser.close();
+      if (attempt === 3) {
+        throw new Error(`Amazon scraper error after 3 attempts: ${err.message}`);
+      }
+      await sleep(2000 * attempt);
     }
-  }
-
-  try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113 Safari/537.36"
-    );
-
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'languages', { get: () => ['en-ZA', 'en'] });
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
-    });
-
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await page.waitForSelector('div[data-component-type="s-search-result"]', { timeout: 120000 });
-
-    const products = await page.evaluate(() => {
-      const cards = Array.from(document.querySelectorAll('div[data-component-type="s-search-result"]')).slice(0, 5);
-
-      return cards.map((card) => {
-        const title = card.querySelector('h2')?.innerText.trim() || "No title";
-        const whole = card.querySelector('span.a-price-whole')?.innerText.replace(/[^\d]/g, "") || "";
-        const fraction = card.querySelector('span.a-price-fraction')?.innerText.replace(/[^\d]/g, "") || "";
-
-        const price = whole
-          ? fraction
-            ? `${whole}.${fraction}`
-            : whole
-          : "No price";
-
-        const image = card.querySelector('img.s-image')?.src || "";
-        const anchor = card.querySelector('a.a-link-normal.s-no-outline');
-        const relativeLink = anchor?.getAttribute('href') || "";
-        const link = relativeLink ? `https://www.amazon.co.za${relativeLink}` : "";
-
-        return { title, price: `R ${price}`, image, link };
-      });
-    });
-
-    if (!products.length) {
-      throw new Error("No Amazon products found");
-    }
-
-    return products;
-
-  } catch (error) {
-    console.error("Amazon scrape failed:", error.message);
-    throw new Error(`Amazon scraper error: ${error.message}`);
-  } finally {
-    if (browser) await browser.close();
   }
 }
 
