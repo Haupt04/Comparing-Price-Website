@@ -31,7 +31,7 @@ const FeaturedComponentsSection = ({matches=[], loading, setFeatureProduct, feat
   return (
     <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-8'>
         <h2 className='text-2xl md:text-3xl font-bold text-gray-800 mb-8 text-center'>Popular Comparisons</h2>
-        <p className="text-xl md:text-xl text-gray-800 text-center  mb-8 mx-auto">Please note that results may take a few minutes to load and make not completely be accurate. Please do your own research.</p>
+        <p className="text-xl md:text-xl text-gray-800 text-center  mb-8 mx-auto">Please note that results may take a few minutes to load and may not completely be accurate. Please do your own research.</p>
         {/* Comparison Card */}
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
 

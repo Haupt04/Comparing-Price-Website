@@ -1,5 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import chromium from '@sparticuz/chromium';
+import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
 
@@ -10,79 +12,88 @@ async function scrapeTakealot(query) {
   console.log("Query:", query);
   console.log("Navigating to:", searchUrl);
 
-  let browser;
-  for (let i = 0; i < 3; i++) {
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        executablePath: '/usr/bin/chromium',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-gpu',
-          '--disable-dev-shm-usage',
-          '--single-process',
-          '--no-zygote'
-        ],
-        defaultViewport: null,
-      });
-      break;
-    } catch (err) {
-      if (err.code === 'ETXTBSY') {
-        console.warn("Chromium binary busy, retrying...");
-        await sleep(500);
-      } else {
-        console.error("Browser launch failed:", err.message);
-        throw err;
-      }
-    }
+  const path = await chromium.executablePath();
+  console.log("Chromium path:", path);
+
+  if (!fs.existsSync(path)) {
+    throw new Error(`Chromium binary not found at ${path}`);
   }
 
-  try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
-    );
+  let browser;
 
-    await page.goto(searchUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 120000,
-    });
-
-    // Close popup if it exists
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await page.waitForSelector('.ab-close-button', { timeout: 5000 });
-      await page.click('.ab-close-button');
-      await page.waitForTimeout(1000);
-    } catch {
-      console.log('No popup to close');
-    }
-
-    await page.waitForSelector('[data-ref="product-card"]', { timeout: 120000 });
-
-    const products = await page.evaluate(() => {
-      const cards = Array.from(document.querySelectorAll('[data-ref="product-card"]')).slice(0, 5);
-      return cards.map(card => {
-        const title = card.querySelector('h4')?.innerText.trim() || 'No title';
-        const price = card.querySelector('[data-ref="price"] .currency')?.innerText.trim() || 'No price';
-        const image = card.querySelector('img[data-ref="product-image"]')?.src || '';
-        const linkPart = card.querySelector('a')?.getAttribute('href') || '';
-        const link = linkPart ? `https://www.takealot.com${linkPart}` : '';
-        return { title, price, image, link };
+      browser = await puppeteer.launch({
+        args: [...chromium.args, '--no-sandbox'],
+        defaultViewport: chromium.defaultViewport,
+        executablePath: path,
+        headless: chromium.headless,
       });
-    });
 
-    if (!products.length) {
-      throw new Error('No Takealot products found');
+      const page = await browser.newPage();
+
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113 Safari/537.36'
+      );
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-ZA,en;q=0.9' });
+
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 120000 });
+
+      // Try to close popup
+      try {
+        await page.waitForSelector('.ab-close-button', { timeout: 5000 });
+        await page.click('.ab-close-button');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch {
+        console.log('No popup to close');
+      }
+
+      // Wait for content wrapper
+      await page.waitForSelector('#shopfront-app', { timeout: 30000 });
+
+      // Wait for product cards
+      await page.waitForSelector('[data-ref="product-card"]', { timeout: 60000 });
+
+      const products = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll('[data-ref="product-card"]')).slice(0, 5);
+        return cards.map(card => {
+          const title = card.querySelector('h4')?.innerText.trim() || 'No title';
+          const price = card.querySelector('[data-ref="price"] .currency')?.innerText.trim() || 'No price';
+          const image = card.querySelector('img[data-ref="product-image"]')?.src || '';
+          const linkPart = card.querySelector('a')?.getAttribute('href') || '';
+          const link = linkPart ? `https://www.takealot.com${linkPart}` : '';
+          return { title, price, image, link };
+        });
+      });
+
+      if (!products.length) {
+        throw new Error('No Takealot products found — maybe blocked?');
+      }
+
+      await browser.close();
+      return products;
+
+    } catch (err) {
+      console.warn(`Attempt ${attempt + 1} failed: ${err.message}`);
+      if (browser) {
+        try {
+          const pages = await browser.pages();
+          const html = await pages[0].content();
+          fs.writeFileSync(`/tmp/takealot_error_${attempt + 1}.html`, html);
+          await pages[0].screenshot({ path: `/tmp/takealot_error_${attempt + 1}.png` });
+        } catch (screenshotErr) {
+          console.error("Screenshot failed:", screenshotErr.message);
+        }
+        await browser.close();
+      }
+
+      if (attempt === 2) {
+        throw new Error(`Takealot scraper error: ${err.message}`);
+      }
+
+      console.log("Retrying...");
+      await sleep(3000);
     }
-
-    return products;
-
-  } catch (err) {
-    console.error('Takealot scrape failed:', err.message);
-    throw new Error(`Takealot scraper error: ${err.message}`);
-  } finally {
-    if (browser) await browser.close();
   }
 }
 

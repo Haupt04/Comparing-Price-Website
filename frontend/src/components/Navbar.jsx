@@ -9,8 +9,12 @@ const Navbar = () => {
                 <div className='flex items-center'>
                     <div className='flex-shrink-0 flex items-center justify-center'>
                         {/* Money Sign Logo */}
-                        <IoIosPricetag className="h-8 w-8 text-green-600" />
-                        <span  className='ml-2 text-xl sm:text-lg md:text-base font-bold text-gray-800'>PriceCompare - Amazon vs Takealot</span>
+                        <div className='flex items-center gap-2'>
+                            <IoIosPricetag className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-green-600" />
+                            <span className='text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800'>
+                                PriceCompare - Amazon vs Takealot
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div className='hidden md:flex items-center'>
